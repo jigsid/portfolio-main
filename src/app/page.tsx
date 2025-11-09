@@ -19,6 +19,14 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientWorksCard } from "@/components/client-works-card";
 import { CLIENTWORKS } from "@/data/config/clients.config";
+import { Great_Vibes } from "next/font/google";
+
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-great-vibes",
+});
+
 const BLUR_FADE_DELAY = 0.04;
 
 interface BlogsI {
@@ -120,6 +128,12 @@ export default function Page() {
 
   return (
     <main className="flex flex-col min-h-[100dvh] space-y-10">
+      <div
+        className={`fixed top-6 right-6 z-50 ${greatVibes.variable} font-great-vibes text-3xl sm:text-4xl text-foreground/80 hover:text-foreground transition-colors cursor-default`}
+        style={{ transform: "rotate(-8deg)" }}
+      >
+        Siddham Mishra
+      </div>
       <Spotlight
         className="fixed -top-40 left-0 md:left-60 md:-top-20"
         fill="white"

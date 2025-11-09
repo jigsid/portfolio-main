@@ -21,6 +21,7 @@ const config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
+        "great-vibes": ["var(--font-great-vibes)", "cursive"],
       },
       colors: {
         border: "hsl(var(--border))",

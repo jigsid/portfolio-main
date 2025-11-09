@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { Textarea } from "./ui/textarea";
+import { Input } from "./ui/input";
 import BlurFade from "./magicui/blur-fade";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { postSchema, PostSchemaT } from "@/lib/schema";
+import { postSchema, PostSchemaT, commentSchema, CommentSchemaT } from "@/lib/schema";
 import {
   Form,
   FormControl,
@@ -20,18 +21,49 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth.context";
 import { createClient } from "@/data/supabase/client";
-import { deleteMsg, postMsg } from "@/data/func";
+import { 
+  deleteMsg, 
+  postMsg, 
+  toggleLike, 
+  getLikes, 
+  postComment, 
+  getComments, 
+  deleteComment 
+} from "@/data/func";
 import { DATA } from "@/data/config/site.config";
+import { CommentForm } from "./comment-form";
+import { CommentItem } from "./comment-item";
 
 const PAGE_SIZE = 5;
 
 interface Message {
   id: number;
-  user_id: string;
+  user_id: string | null;
   user_image: string;
   user_name: string;
   user_email: string;
   msg: string;
+  created_at: string;
+  likes_count?: number;
+  comments_count?: number;
+}
+
+interface Like {
+  id: number;
+  message_id: number;
+  user_identifier: string;
+  user_id: string | null;
+  created_at: string;
+}
+
+interface Comment {
+  id: number;
+  message_id: number;
+  user_id: string | null;
+  user_image: string;
+  user_name: string;
+  user_email: string;
+  comment: string;
   created_at: string;
 }
 
@@ -39,6 +71,11 @@ export default function Guestbook() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+  const [messageLikes, setMessageLikes] = useState<Map<number, Like[]>>(new Map());
+  const [messageComments, setMessageComments] = useState<Map<number, Comment[]>>(new Map());
+  const [userLikes, setUserLikes] = useState<Set<string>>(new Set()); // messageId_userIdentifier
+  const [commentForms, setCommentForms] = useState<Map<number, boolean>>(new Map());
   const { ref, inView } = useInView({
     threshold: 0.1,
     triggerOnce: false,
@@ -48,7 +85,11 @@ export default function Guestbook() {
 
   const form = useForm<PostSchemaT>({
     resolver: zodResolver(postSchema),
-    defaultValues: { msgbox: "" },
+    defaultValues: { 
+      name: user?.user_metadata?.name || "", 
+      email: user?.email || "", 
+      msgbox: "" 
+    },
   });
 
   // Memoize the set of message IDs to prevent duplicates
@@ -56,6 +97,34 @@ export default function Guestbook() {
     () => new Set(messages.map((msg) => msg.id)),
     [messages],
   );
+
+  // Load likes and comments for a message
+  const loadMessageInteractions = useCallback(async (messageId: number) => {
+    try {
+      const [likesResult, commentsResult] = await Promise.all([
+        getLikes(messageId),
+        getComments(messageId),
+      ]);
+
+      if (!likesResult.error) {
+        setMessageLikes((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(messageId, likesResult.data);
+          return newMap;
+        });
+      }
+
+      if (!commentsResult.error) {
+        setMessageComments((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(messageId, commentsResult.data);
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error("Error loading message interactions:", error);
+    }
+  }, []);
 
   const loadMoreMessages = useCallback(async () => {
     if (isLoading || !hasMore) return;
@@ -69,7 +138,10 @@ export default function Guestbook() {
         .range(messages.length, messages.length + PAGE_SIZE - 1);
 
       if (error) {
-        throw error;
+        console.error("Supabase error:", error);
+        console.error("Full error details:", JSON.stringify(error, null, 2));
+        setHasMore(false);
+        return;
       }
 
       const typedData = (data ?? []) as Message[];
@@ -86,16 +158,23 @@ export default function Guestbook() {
           );
           return uniqueMessages;
         });
+
+        // Load interactions for new messages
+        for (const msg of newMessages) {
+          await loadMessageInteractions(msg.id);
+        }
       }
 
       setHasMore(newMessages.length === PAGE_SIZE);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading messages:", error);
-      toast.error("Failed to load messages. Please try again.");
+      const errorMessage = error?.message || "Failed to load messages. Please check your connection.";
+      toast.error(errorMessage);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
-  }, [messages, supabase, messageIds, isLoading, hasMore]);
+  }, [messages, supabase, messageIds, isLoading, hasMore, loadMessageInteractions]);
 
   useEffect(() => {
     const messageChannel = supabase
@@ -125,6 +204,7 @@ export default function Guestbook() {
 
   const fetchInitialMessages = useCallback(async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from("messages")
         .select("*")
@@ -132,18 +212,33 @@ export default function Guestbook() {
         .range(0, PAGE_SIZE - 1);
 
       if (error) {
-        throw error;
+        console.error("Supabase error:", error);
+        // Don't throw, just log and show empty state
+        console.error("Full error details:", JSON.stringify(error, null, 2));
+        setMessages([]);
+        setHasMore(false);
+        return;
       }
 
       const typedData = (data ?? []) as Message[];
       setMessages(typedData);
 
+      // Load likes and comments for all messages
+      for (const msg of typedData) {
+        await loadMessageInteractions(msg.id);
+      }
+
       setHasMore(typedData.length === PAGE_SIZE);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading initial messages:", error);
-      toast.error("Failed to load messages. Please try again.");
+      const errorMessage = error?.message || "Failed to load messages. Please check your connection.";
+      toast.error(errorMessage);
+      setMessages([]);
+      setHasMore(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, loadMessageInteractions]);
 
   // Initial load of messages
   useEffect(() => {
@@ -193,30 +288,223 @@ export default function Guestbook() {
     }
   };
 
-  const onSubmit = async (data: PostSchemaT) => {
-    if (!user) {
-      toast.error("Please sign in to send a message.");
-      return;
-    }
-
+  const handleLike = async (messageId: number) => {
     try {
+      // For anonymous users, prompt for name
+      let userName = user?.user_metadata?.name || "Anonymous";
+      let userEmail = user?.email || "anonymous@guestbook.com";
+      
+      if (!user) {
+        const name = prompt("Please enter your name to like this message:");
+        if (!name || name.trim().length < 2) {
+          toast.error("Name is required to like messages");
+          return;
+        }
+        userName = name.trim();
+        userEmail = `anonymous_${Date.now()}@guestbook.com`;
+      }
+
+      const userId = user?.id || null;
+      const userIdentifier = userId || `${userName}_${userEmail}`;
+
+      const result = await toggleLike(messageId, userId, userName, userEmail);
+      
+      if (result.error) {
+        toast.error("Failed to like message. Please try again.");
+        return;
+      }
+
+      // Reload likes for this message
+      const likesResult = await getLikes(messageId);
+      if (!likesResult.error) {
+        setMessageLikes((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(messageId, likesResult.data);
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error("Error liking message:", error);
+      toast.error("Failed to like message. Please try again.");
+    }
+  };
+
+  const handleToggleComments = (messageId: number) => {
+    setExpandedComments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+        // Load comments if not already loaded
+        if (!messageComments.has(messageId)) {
+          loadMessageInteractions(messageId);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleCommentForm = (messageId: number) => {
+    setCommentForms((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(messageId, !newMap.get(messageId));
+      return newMap;
+    });
+  };
+
+  const onSubmit = async (data: PostSchemaT) => {
+    try {
+      // Validate name is provided if user is not logged in
+      if (!user && (!data.name || data.name.trim().length < 2)) {
+        toast.error("Please enter your name (at least 2 characters)");
+        return;
+      }
+
       const validatedData = await postSchema.parseAsync({ ...data });
-      await postMsg(
-        user.user_metadata.avatar_url!,
-        user.email!,
-        user.user_metadata.name!,
+      
+      // Use authenticated user data if available, otherwise use form data
+      const userName = user?.user_metadata?.name || validatedData.name || "Anonymous";
+      const userEmail = user?.email || validatedData.email || "anonymous@guestbook.com";
+      const userImage = user?.user_metadata?.avatar_url || null;
+      const userId = user?.id || undefined;
+
+      const result = await postMsg(
+        userImage,
+        userEmail,
+        userName,
         validatedData.msgbox,
+        userId,
       );
-      form.reset();
+      
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to send message");
+      }
+      
+      form.reset({
+        name: user?.user_metadata?.name || "",
+        email: user?.email || "",
+        msgbox: "",
+      });
+      toast.success("Message sent successfully!");
+      
+      // Reload messages to show the new one
+      setTimeout(() => {
+        fetchInitialMessages();
+      }, 500);
     } catch (error) {
       console.error("Submission error:", error);
-      toast.error("Failed to send message. Please try again.");
+      if (error instanceof Error) {
+        toast.error(error.message || "Failed to send message. Please try again.");
+      } else {
+        toast.error("Failed to send message. Please try again.");
+      }
     }
   };
 
   return (
     <div className="max-w-xl mx-auto p-2 mt-5 overflow-hidden">
+      {/* Message Form at the top */}
+      <div className="mb-8 pb-6 border-b">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-3 w-full"
+          >
+            {!user && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input
+                          placeholder="Your name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="Your email (optional)"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+            <div className="flex flex-col md:flex-row gap-2">
+              <FormField
+                control={form.control}
+                name="msgbox"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
+                      <Textarea
+                        placeholder="So, what do you think about me?..."
+                        className="flex-1 min-h-[80px]"
+                        {...field}
+                        autoFocus={!!user}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                className="m-auto w-full md:w-auto"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? "Sending..." : "Send"}
+              </Button>
+            </div>
+            {!user && (
+              <p className="text-xs text-muted-foreground text-center">
+                You can also{" "}
+                <button
+                  type="button"
+                  onClick={() => handleSignIn("google")}
+                  className="underline hover:text-foreground"
+                >
+                  sign in with Google
+                </button>
+                {" or "}
+                <button
+                  type="button"
+                  onClick={() => handleSignIn("github")}
+                  className="underline hover:text-foreground"
+                >
+                  GitHub
+                </button>
+                {" to use your profile"}
+              </p>
+            )}
+          </form>
+        </Form>
+      </div>
+
       <div className="space-y-4 mb-24">
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              No messages yet. Be the first to leave a message!
+            </p>
+          </div>
+        )}
         {messages.map((msg, i) => (
           <BlurFade delay={i * 0.2} key={msg.id}>
             <div className="bg-card border rounded-xl p-4 w-full hover:bg-muted/50 transition-colors shadow-sm">
@@ -242,7 +530,7 @@ export default function Guestbook() {
                         {new Date(msg.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    {(user?.id === msg.user_id ||
+                    {((user?.id && user.id === msg.user_id) ||
                       user?.id === DATA.adminUserId) && (
                       <Button
                         size={"icon"}
@@ -257,6 +545,74 @@ export default function Guestbook() {
                   <p className="text-foreground break-words text-sm w-full">
                     {msg.msg}
                   </p>
+                  
+                  {/* Like and Comment Buttons */}
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t">
+                    <button
+                      onClick={() => handleLike(msg.id)}
+                      className="flex items-center gap-2 text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <Heart
+                        className={`h-5 w-5 ${
+                          (() => {
+                            const likes = messageLikes.get(msg.id) || [];
+                            if (!user) return "";
+                            const userIdentifier = user.id || `${user.user_metadata?.name}_${user.email}`;
+                            const isLiked = likes.some(
+                              (like) => like.user_id === user.id || like.user_identifier === userIdentifier
+                            );
+                            return isLiked ? "fill-red-500 text-red-500" : "";
+                          })()
+                        }`}
+                      />
+                      <span className="text-sm">
+                        {messageLikes.get(msg.id)?.length || 0}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleToggleComments(msg.id);
+                        handleToggleCommentForm(msg.id);
+                      }}
+                      className="flex items-center gap-2 text-muted-foreground hover:text-blue-500 transition-colors"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      <span className="text-sm">
+                        {messageComments.get(msg.id)?.length || 0}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Comments Section */}
+                  {expandedComments.has(msg.id) && (
+                    <div className="mt-4 space-y-3">
+                      {/* Comment Form */}
+                      {commentForms.get(msg.id) && (
+                        <CommentForm
+                          messageId={msg.id}
+                          user={user}
+                          onSuccess={() => {
+                            loadMessageInteractions(msg.id);
+                            handleToggleCommentForm(msg.id);
+                          }}
+                        />
+                      )}
+                      
+                      {/* Comments List */}
+                      {messageComments.get(msg.id)?.map((comment) => (
+                        <CommentItem
+                          key={comment.id}
+                          comment={comment}
+                          user={user}
+                          adminId={DATA.adminUserId}
+                          onDelete={async () => {
+                            await deleteComment(comment.id);
+                            loadMessageInteractions(msg.id);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -279,54 +635,6 @@ export default function Guestbook() {
             No more messages to load
           </p>
         )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 pb-20 md:pb-3">
-        <div className="max-w-xl mx-auto">
-          {user ? (
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="flex flex-col md:flex-row gap-2 w-full"
-              >
-                <FormField
-                  control={form.control}
-                  name="msgbox"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <Textarea
-                          placeholder="So, what do you think about me?..."
-                          className="flex-1"
-                          {...field}
-                          autoFocus
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="m-auto w-full md:w-auto"
-                  disabled={form.formState.isSubmitting}
-                >
-                  {form.formState.isSubmitting ? "Sending..." : "Send"}
-                </Button>
-              </form>
-            </Form>
-          ) : (
-            <div className="flex w-full gap-2 items-center justify-center">
-              <Button onClick={() => handleSignIn("google")}>
-                Login with Google
-              </Button>
-              <span className="text-muted-foreground">OR</span>
-              <Button onClick={() => handleSignIn("github")}>
-                Login with GitHub
-              </Button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

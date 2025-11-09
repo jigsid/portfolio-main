@@ -19,12 +19,7 @@ export const navItems = [
     name: "blogs",
     external: false,
   },
-  {
-    link: "/guestbook",
-    icon: <Newspaper className="h-6 w-6 text-neutral-500 dark:text-neutral-400" />,
-    name: "guestbook",
-    external: false,
-  },
+ 
   {
     link: DATA.contact.social.GitHub.url,
     icon: <Icons.github className="h-6 w-6 text-neutral-500 dark:text-neutral-400" />,
