@@ -1,7 +1,7 @@
 import { Icons } from "@/components/icons";
 
 export const DATA = {
-  name: "Saidev Dhal",
+  name: "Siddham",
   initials: "SDD",
   adminUserId: "ba7153c9-2262-4a89-9bc2-de924ef78afa",
   url: "https://saidevdhal.xyz",
@@ -14,7 +14,8 @@ export const DATA = {
   timeZone: "Asia/Kolkata",
   localCode: "en-IN",
   description:
-    "18-year-old tech enthusiast, indie hacker, entrepreneur and OSS builder.",
+    "been here for 21.000000000 years",
+  dateOfBirth: "2004-04-26",
   about:
     "I'm a super introvert nurtured in a small state [Odisha, India](https://maps.app.goo.gl/SFCDCshEyR96jmNUA), passionate about building impactful products that leverage technology to make a difference. I often share my work to [contribute](https://git.new/skidgod) to the community. In addition to my development work, I'm always exploring new ideas, particularly in areas like machine learning and robotics.\n\n In my free time i play games, listen music also i love to read books of *self-help* genre. I'm a huge fan of Iron Man. He inspires me a lot.\n\nIt's a pleasure to meet you!",
   bio: "I'm a super introvert nurtured in a small state [Odisha, India](https://maps.app.goo.gl/SFCDCshEyR96jmNUA), passionate about building impactful products that leverage technology to make a difference. I often share my work to [contribute](https://git.new/skidgod) to the community. In addition to my development work, I'm always exploring new ideas, particularly in areas like machine learning and robotics.",
@@ -24,7 +25,7 @@ export const DATA = {
     "I began my journey as a self-taught developer at 14, during 8th grade, and it's been a rollercoaster ever since. Online, I'm known as [SkidGod](https://dub.sh/skidgod), a name that reflects my roots—starting as an unskilled 'skid' using others' scripts.\n\nBack in 2019, I was just an average school kid with little tech knowledge. When the pandemic hit, everything moved online, and I got a Redmi 8 for attending classes. But, I quickly turned it into a gaming device, getting hooked on ***Free Fire***. This led me to join Discord gaming servers, where I discovered the world of Discord bots.\n\nI met a guy named Priyanshu, the creator of the 'Groot' bot, and got inspired. I spent a year skidding code on Replit, eventually learning Python. I then built a successful Discord bot, 'Floater,' with over 3 million users and 5,000 servers. Despite being bullied for being a 'skid,' I embraced the name SkidGod and started contributing to open-source Discord bots.\n\nAnd that's how my career began.",
   avatarUrl: "/me.jpg",
   connect:
-    "Let's connect and build something cool together. Feel free to reach out to me. I'm always open to new opportunities and collaborations. Reach out to me via **email: (connect.saidev@gmail.com)** or dm me on [Twitter](https://dub.sh/saidev-twitter) or [Instagram](https://dub.sh/saidev-instagram).",
+    "Let's connect and build something cool together. Feel free to reach out to me. I'm always open to new opportunities and collaborations. Reach out to me via **email: (connect.siddhammishra@gmail.com)** or dm me on [Twitter](https://dub.sh/saidev-twitter) or [Instagram](https://dub.sh/saidev-instagram).",
   skills: [
     "React",
     "Next.js",
@@ -35,40 +36,40 @@ export const DATA = {
     "Javascript",
   ],
   contact: {
-    email: "connect.saidev@gmail.com",
+    email: "connect.siddhammishra@gmail.com",
     tel: "+123456789",
     social: {
       GitHub: {
         name: "GitHub",
-        url: "https://git.new/skidgod",
+        url: "https://git.new/jigsid",
         icon: Icons.github,
 
         navbar: true,
       },
       LinkedIn: {
         name: "LinkedIn",
-        url: "https://dub.sh/saidev-linkedin",
+        url: "https://www.linkedin.com/in/siddham-mishra-611437247/",
         icon: Icons.linkedin,
 
         navbar: true,
       },
       X: {
         name: "X",
-        url: "https://dub.sh/saidev-twitter",
+        url: "https://x.com/OXOjigsaw",
         icon: Icons.x,
 
         navbar: true,
       },
       Instagram: {
         name: "Instagram",
-        url: "https://dub.sh/saidev-instagram",
+        url: "https://instagram.com/siddh4m",
         icon: Icons.x,
 
         navbar: true,
       },
       Youtube: {
         name: "Youtube",
-        url: "https://dub.sh/skidgod",
+        url: "https://www.youtube.com/@jigsid",
         icon: Icons.youtube,
         navbar: true,
       },

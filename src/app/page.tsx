@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { Lens } from "@/components/acternityui/lens";
 import BlurFade from "@/components/magicui/blur-fade";
 import BlurFadeText from "@/components/magicui/blur-fade-text";
+import { DynamicDescription } from "@/components/dynamic-description";
 import { ProjectCard } from "@/components/project-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DATA } from "@/data/config/site.config";
-import { AlarmClock, LocateFixed, HeartPulse } from "lucide-react";
 import Link from "next/link";
 import Markdown from "react-markdown";
 import { PlaceholdersAndVanishInput } from "@/components/acternityui/vanish-input";
@@ -73,9 +73,8 @@ export default function Page() {
   }, [blogPosts.length, isNsl]);
 
   const [hovering, setHovering] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const placeholders = [
-    "connect.saidev@gmail.com",
+    "connect.siddhammishra@gmail.com",
     "Dive deeper into the world of tech and beyond. Hit subscribe!",
     "Curious about everything? subscribe now!",
     "Write a Javascript method to reverse a string",
@@ -118,15 +117,6 @@ export default function Page() {
     }
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
 
   return (
     <main className="flex flex-col min-h-[100dvh] space-y-10">
@@ -142,39 +132,14 @@ export default function Page() {
                 delay={BLUR_FADE_DELAY}
                 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none"
                 yOffset={8}
-                text={`Hi, I'm ${DATA.name.split(" ")[0]} 👻`}
-              />
-              <BlurFadeText
-                className="max-w-[600px] md:text-lg mt-2"
-                delay={BLUR_FADE_DELAY}
-                text={DATA.description}
+                text={`Hi, I'm ${DATA.name.split(" ")[0]} `}
               />
               <BlurFade delay={BLUR_FADE_DELAY}>
-                <div className="flex flex-wrap gap-1 h-full w-full">
-                  <Badge variant="outline" className="cursor-pointer group">
-                    <LocateFixed className="size-4 mr-1 group-hover:text-green-500" />
-                    {DATA.location}
-                  </Badge>
-                  <Badge variant="outline" className="cursor-pointer group">
-                    <AlarmClock className="size-4 mr-1 group-hover:text-blue-500" />
-                    {currentTime.toLocaleTimeString(DATA.localCode, {
-                      timeZone: DATA.timeZone,
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: true,
-                    })}
-                  </Badge>
-                  <Link href={DATA.sponsore}>
-                    <Badge
-                      variant="outline"
-                      className="hidden md:flex cursor-pointer group"
-                    >
-                      <HeartPulse className="size-4 mr-1 group-hover:text-red-500" />
-                      Sponsore
-                    </Badge>
-                  </Link>
-                </div>
+                <DynamicDescription
+                  baseText={DATA.description}
+                  dateOfBirth={DATA.dateOfBirth}
+                  className="max-w-[600px] md:text-lg mt-2 block"
+                />
               </BlurFade>
             </div>
             <BlurFade delay={BLUR_FADE_DELAY}>

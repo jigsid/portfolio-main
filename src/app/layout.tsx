@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeInit } from "@/components/theme-init";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DATA } from "@/data/config/site.config";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   },
   description: DATA.description,
   keywords: [
-    "Saidev Dhal",
+    "Siddham",
     "SkidGod",
     "Saidev Dhal Portfolio",
     "Saidev Dhal Projects",
@@ -95,14 +96,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="dark">
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased max-w-2xl mx-auto py-12 sm:py-24 px-6",
-          fontSans.variable,
+          fontSans.variable
         )}
       >
-        <ThemeProvider attribute="class" defaultTheme="dark">
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="dark" 
+          enableSystem={false}
+          disableTransitionOnChange={false}
+          storageKey="theme"
+        >
+          <ThemeInit />
           <TooltipProvider delayDuration={0}>
             <div className="hidden md:block">
               <TopNavbar />
